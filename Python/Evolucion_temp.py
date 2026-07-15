@@ -41,7 +41,7 @@ dt = 1 / 1000
 px = 1 / ( 704 * 2.3825 / 256 )
 
 print('Aplicando funciones')
-tracks = all_tracks( df, 1, 1, True)
+tracks = all_tracks( df, px, dt, True)
 tracks_df = pd.concat(tracks, ignore_index=True)
 del(df)
 #print(tracks[0])
