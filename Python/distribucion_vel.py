@@ -1,18 +1,52 @@
-### DISTRIBUCION DE VELOCIDADES
+############################### DISTRIBUCIÓN DE VELOCIDADES ############################################################
+# cargar librerías necesarias
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib 
+import cv2
+import os
+import glob
+import gc
+import scipy
+from scipy.stats import norm
+from scipy.stats import linregress
+from scipy.spatial.distance import pdist
+import trackpy as tp
+import pandas as pd
+import pims
+from pandas import DataFrame, Series
+from scipy.signal import savgol_filter
+from scipy.ndimage import gaussian_filter1d
+
+
+# Configurar el estilo del gráfico
+plt.style.use('bmh')
+plt.rcParams['axes.facecolor'] = 'white'
+plt.rcParams['figure.facecolor'] = 'white'
+plt.rcParams["xtick.direction"] = "out"
+plt.rcParams["ytick.direction"] = "out"
+plt.rcParams.update({
+    'text.usetex': True,
+    'font.family': 'serif',
+    'font.size': 12,
+    'figure.figsize': (6.4, 4.0),
+    'legend.fontsize': 9
+})
+
 fase1_inicio = 6000  # inicio de la vibración aprox
 fase1_fin = 25000   # fin de la vibración aprox
 
-# leemos los datos
-f= pd.read_pickle('/data5TB/jpolobar/granular/vel45.pkl')
+# leer datos para cada config de gas granular
+f= pd.read_pickle('/data/jpolobar/granular/filtrado_45.pkl')
 fase1 = f[(f['frame'] >= fase1_inicio) & (f['frame'] <= fase1_fin)]
 
-e = pd.read_pickle('/data5TB/jpolobar/granular/vel60.pkl')
+e = pd.read_pickle('/data/jpolobar/granular/filtrado_60.pkl')
 fase2 = e[(e['frame'] >= fase1_inicio) & (e['frame'] <= fase1_fin)]
 
-d= pd.read_pickle('/data5TB/jpolobar/granular/vel70.pkl')
+d= pd.read_pickle('/data/jpolobar/granular/filtrado_70.pkl')
 fase3 = d[(d['frame'] >= fase1_inicio) & (d['frame'] <= fase1_fin)]
 
-#una componente de la velocidad (isotropia)
+
 v1 = fase1['vx'].dropna().values 
 
 v2 =fase2['vx'].dropna().values 
@@ -31,7 +65,7 @@ v_scaled2 = v2 / v02
 v_scaled3 = v3 / v03
 
 
-# Histograma conjunto
+# Histogramas
 hist1, bins = np.histogram(v_scaled1, bins=120, range=(-5,5), density=True)
 hist2, bins = np.histogram(v_scaled2, bins=120, range=(-5,5), density=True)
 hist3, bins = np.histogram(v_scaled3, bins=120, range=(-5,5), density=True)
@@ -43,6 +77,7 @@ colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 # Gaussiana
 P_gauss = (1/np.sqrt(np.pi)) * np.exp(-centers**2)
 
+# graficar
 plt.figure(figsize=(6.4,4))
 #plt.yscale('log')
 plt.scatter(centers, hist1,marker='o',facecolor='white',edgecolors='#348ABD', s=20, label=r'$\Gamma = 4.05$')
