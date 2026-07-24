@@ -1,63 +1,77 @@
-####  INDIVIDUAL TRACKS ##############
-# build a 't_id' indivitual track 
-def track(t_id, tabla, px, dt, dropit):
-    t1 = tabla.loc[tabla.track == t_id].reset_index(drop=dropit)
-    vx = px * ( t1.x.values[1:] - t1.x.values[:-1] ) / dt
-    vy = px * ( t1.y.values[1:] - t1.y.values[:-1] ) / dt
-    t1 = t1.iloc[:-1].copy()  # copia explícita
-    t1['vx'] = vx
-    t1['vy'] = vy
-    return t1
-
-# build individual tracks from all kept tracks
-# OUTPUT
-# tr_lengths[i]: length of track no.  'i'. The total no. of tracks is stored in 'Ntracks'
-def all_tracks(tabla, px, dt, dropit):
-    # length of track
-    global tr_lengths
-    tr_lengths = np.empty(Ntracks,dtype=int)
-    tracks = [[] for i in range(Ntracks)]
-    for i in range(Ntracks):
-        tracks[i] = track(i, tabla, px,  dt , dropit)
-        tr_lengths[i] = int(len(tracks[i]))
-        if i % 10000 == 0: print(f"Iteración: {i}")
-    return tracks
+############################################### EVOLUCIÓN DE LA TEMPERATURA GRANULAR #############################################################################################
+# importar librerías necesarias 
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib 
+import cv2
+import os
+import glob
+import gc
+import scipy
+from scipy.stats import norm
+from scipy.stats import linregress
+from scipy.spatial.distance import pdist
+import trackpy as tp
+import pandas as pd
+import pims
+from pandas import DataFrame, Series
+from scipy.signal import savgol_filter
+from scipy.ndimage import gaussian_filter1d
 
 
+# Configuramos el estilo del gráfico
+plt.style.use('bmh')
+plt.rcParams['axes.facecolor'] = 'white'
+plt.rcParams['figure.facecolor'] = 'white'
+plt.rcParams["xtick.direction"] = "out"
+plt.rcParams["ytick.direction"] = "out"
+plt.rcParams.update({
+    'text.usetex': True,
+    'font.family': 'serif',
+    'font.size': 12,
+    'figure.figsize': (6.4, 4.0),
+    'legend.fontsize': 9
+})
 
 
-# leemos los datos (Gamma = 6.30)
-df = pd.read_hdf('/data5TB/jpolobar/granular/trayectorias_gas70.h5', compression='infer')
-print('leido')
-df = df[['frame', 'particle', 'x', 'y']]
-df = df.rename(columns={'particle': 'track'})
-df = df.reset_index(drop=True)
-Ntracks = np.max(df.track.values)
-print('no. of tracks: ', Ntracks, '\n')
-#print(df.head(), "\n")
 
-# Escala temporal y espacial
-dt = 1 / 1000
-px = 1 / ( 704 * 2.3825 / 256 )
+# leer los datos para cada config de gas granular
+h = pd.read_pickle('/data/jpolobar/granular/filtrado_45.pkl')
 
-print('Aplicando funciones')
-tracks = all_tracks( df, px, dt, True)
-tracks_df = pd.concat(tracks, ignore_index=True)
-del(df)
-#print(tracks[0])
+f= pd.read_pickle('/data/jpolobar/granular/filtrado_50.pkl')
 
-# RE-ORDER to original indexing (by frame and then by particle)
-tracks_df.sort_values(by=['frame','track']).reset_index(drop=True)
+e = pd.read_pickle('/data/jpolobar/granular/filtrado_60.pkl')
 
-print(tracks_df.head())
+d= pd.read_pickle('/data/jpolobar/granular/filtrado_70.pkl')
+
+# Cálculo de la T_g
+T_g = 0.5 * h.groupby('frame')['v2'].mean()
+T_g2 = 0.5 * f.groupby('frame')['v2'].mean()
+T_g3 = 0.5 * e.groupby('frame')['v2'].mean()
+T_g4 = 0.5 * d.groupby('frame')['v2'].mean()
 
 
-# TEMPERATURA GRANULAR
+# filtro gaussiano para eliminar ruido
+T_g_filtered = gaussian_filter1d(T_g, sigma=60)
+T_g2_filtered = gaussian_filter1d(T_g2, sigma=60)
+T_g3_filtered = gaussian_filter1d(T_g3, sigma=60)
+T_g4_filtered = gaussian_filter1d(T_g4, sigma=70)
 
-tracks_df['v2'] = tracks_df['vx']**2 + tracks_df['vy']**2
 
-T_g = 0.5 * tracks_df.groupby('frame')['v2'].mean()
-T_g_filtered = savgol_filter(T_g, window_length=53, polyorder=3) #filtro para eliminar ruido
-plt.plot(T_g.index/1000,T_g_filtered)
+# graficar 
+plt.figure(figsize=(6.4,4))
+plt.scatter((T_g.index / 1000), T_g_filtered, marker='.',s=0.1,label = r'$\Gamma = 4.05$')
+plt.scatter((T_g2.index / 1000)-1.2, T_g2_filtered,  marker='.',s=0.1,label = r'$\Gamma = 4.50$') # alinear temporalmente todas las gráficas con respecto a una de las curvas 
+plt.scatter((T_g3.index / 1000)-0.8, T_g3_filtered,  marker='.',s=0.1,label = r'$\Gamma = 5.40$')
+plt.scatter((T_g4.index / 1000)-0.3, T_g4_filtered,  marker='.',s=0.1,label = r'$\Gamma = 6.30$')
+plt.xlim(0,30)
+plt.ylim(0,0.04)
+plt.xlabel(r'$t$ [s]')
+plt.ylabel(r'$T_g\,[\sigma^2/\mathrm{s}^2]$')
+plt.legend(frameon=False, fontsize=9, loc='best',markerscale=15)
+plt.grid(False)
+plt.savefig('T_final.png', dpi=600, bbox_inches='tight')
+plt.show()
+
 
 
