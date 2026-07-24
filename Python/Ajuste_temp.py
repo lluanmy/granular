@@ -69,7 +69,7 @@ for gamma, df in gases.items():
     T_mean.append(T_g.mean())
 
     # error estándar de la media
-    T_err.append(T_mean.std(ddof=1) / np.sqrt(len(T_mean)))
+    T_err.append(T_g.std(ddof=1) / np.sqrt(len(T_g)))
 
 T_mean = np.array(T_mean)
 T_err = np.array(T_err)
